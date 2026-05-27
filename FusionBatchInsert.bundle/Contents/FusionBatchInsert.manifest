@@ -1,0 +1,13 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "addin",
+    "id": "com.danecca.fusionbatchinsert",
+    "author": "Danecca Ltd",
+    "description": {
+        "": "Batch-place jointed component instances across joint origins in one step"
+    },
+    "version": "1.1.0",
+    "runOnStartup": true,
+    "supportedOS": "windows|mac",
+    "editEnabled": true
+}

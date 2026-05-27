@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0"
+    ProductType="Application"
+    AutodeskProduct="Fusion360"
+    Name="FusionBatchInsert"
+    Description="Batch-place jointed component instances across joint origins in one step"
+    AppVersion="1.1.0"
+    Author="Danecca Ltd"
+    AppNameSpace="com.danecca.fusionbatchinsert"
+    OnlineDocumentation=""
+    ProductCode="*"
+    UpgradeCode="{B3F2A1C4-8E5D-4F7A-9B2C-1D6E3F0A4C8B}" >
+
+    <CompanyDetails Name="Danecca Ltd"
+        Phone=" "
+        Url=""
+        Email="" />
+
+    <RuntimeRequirements SupportPath="./Contents" OS="win64|mac" Platform="Fusion360" SeriesMin="" />
+
+    <Components>
+        <RuntimeRequirements SupportPath="./Contents" OS="win64|mac" Platform="Fusion360" SeriesMin="" />
+        <ComponentEntry AppName="FusionBatchInsert" Version="1.1.0"
+            ModuleName="./Contents/FusionBatchInsert.manifest"
+            AppDescription="Batch-place jointed component instances across joint origins in one step" />
+    </Components>
+
+</ApplicationPackage>
