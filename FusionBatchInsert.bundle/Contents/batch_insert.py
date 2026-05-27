@@ -287,6 +287,11 @@ class _CreatedHandler(adsk.core.CommandCreatedEventHandler):
             cmd    = args.command
             inputs = cmd.commandInputs
 
+            try:
+                cmd.setDialogMinimumSize(420, 50)
+            except Exception:
+                pass
+
             # 1. Source component
             src = inputs.addSelectionInput(
                 INPUT_SOURCE,
@@ -310,10 +315,11 @@ class _CreatedHandler(adsk.core.CommandCreatedEventHandler):
             tgt = inputs.addSelectionInput(
                 INPUT_TARGETS,
                 "Target locations",
-                "Pick joint origins or circular hole edges where copies will be placed",
+                "Pick joint origins, circular hole edges, or sketch points/circles where copies will be placed",
             )
-            tgt.setSelectionLimits(1, 0)
-            for _f in ("JointOrigins", "CircularEdges"):
+            tgt.setSelectionLimits(0, 0)  # min=0: Fusion enforces it otherwise even when hidden
+            for _f in ("JointOrigins", "CircularEdges",
+                       "SketchPoints", "SketchCurves", "SketchCircles", "SketchArcs"):
                 try:
                     tgt.addSelectionFilter(_f)
                 except Exception:
@@ -887,9 +893,19 @@ def _target_to_geo2(
             edge, adsk.fusion.JointKeyPointTypes.CenterKeyPoint
         )
 
+    sketch_pt = adsk.fusion.SketchPoint.cast(target_entity)
+    if sketch_pt is not None:
+        return adsk.fusion.JointGeometry.createByPoint(sketch_pt)
+
+    sketch_curve = adsk.fusion.SketchCurve.cast(target_entity)
+    if sketch_curve is not None:
+        return adsk.fusion.JointGeometry.createByCurve(
+            sketch_curve, adsk.fusion.JointKeyPointTypes.CenterKeyPoint
+        )
+
     raise RuntimeError(
         f"Cannot create joint geometry from entity type '{target_entity.objectType}'. "
-        "Select a joint origin or a circular edge."
+        "Select a joint origin, circular edge, sketch point, or sketch circle/arc."
     )
 
 

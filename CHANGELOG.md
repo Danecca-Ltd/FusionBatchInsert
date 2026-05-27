@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.1 — 2026-05-27
+- Fixed: Select Similar OK/Preview buttons remain greyed out even when matches are found.
+  Root cause: `INPUT_TARGETS.setSelectionLimits(1, 0)` caused Fusion to enforce a 1-selection
+  minimum even on the hidden/disabled targets input. Changed to `setSelectionLimits(0, 0)`;
+  the validate handler already enforces the manual-mode requirement explicitly.
+- Manual mode now accepts sketch geometry: sketch points (`SketchPoint`) and sketch circles/arcs
+  (`SketchCurve`). `_target_to_geo2` dispatches to `createByPoint` / `createByCurve` accordingly.
+  Selection filters updated to include SketchPoints, SketchCurves, SketchCircles, SketchArcs.
+
 ## 1.1.0 — 2026-05-27
 - Improved error messages: Fusion cascade-failure dumps condensed to one line + count.
   Actionable guidance shown when all copies fail due to assembly compute errors.
