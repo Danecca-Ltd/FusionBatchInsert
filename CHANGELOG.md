@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.2.0 — 2026-09-09
+- "Select similar" now defaults to OFF — manual target selection is the default workflow.
+- Select Similar's matches are now loaded straight into the "Target locations" selection
+  list instead of only being drawn as rings. Each match becomes a removable entry (via
+  the list's own remove control, or ctrl-click in the viewport), so over-eager matches
+  can be trimmed before committing. `_refresh_similar()` populates the list on source
+  change / toggle-on; `_sync_targets_display()` redraws rings/info from the list's
+  current contents after an edit, without re-running the match search (which would
+  otherwise wipe out the user's deselections).
+- `_do_batch()` now always reads targets from the "Target locations" list (both modes),
+  instead of Select Similar re-running `_find_similar_targets()` at execute time. What
+  you see highlighted/listed is exactly what gets placed.
+- `_ValidateHandler` now requires at least one target in both modes — previously
+  Select Similar mode was always "valid" even with zero matches, only failing at
+  execute time with a message box.
+- Added a re-entrancy guard (`_populating_targets`) around the bulk list-population
+  loop: Fusion can fire `inputChanged` for programmatic selection edits too, and
+  without the guard a large match list triggered one nested redraw per entry.
+- Fixed: toggling "Select similar" on could silently fail to refresh the match count/
+  list when the source was already selected. Root cause: a cosmetic `tgt.name = ...`
+  rename, run before the refresh call, could throw on this input type; the outer
+  catch-all handler swallowed the exception and aborted before reaching the refresh.
+  Fixed by wrapping the rename in its own try/except.
+
 ## 1.1.1 — 2026-05-27
 - Fixed: Select Similar OK/Preview buttons remain greyed out even when matches are found.
   Root cause: `INPUT_TARGETS.setSelectionLimits(1, 0)` caused Fusion to enforce a 1-selection

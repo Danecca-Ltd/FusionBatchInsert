@@ -8,8 +8,8 @@ Fusion's built-in **Duplicate with Joint** command creates one copy at a time. W
 
 ## Features
 
-- **Select Similar** — auto-detects all holes on the target component whose axis direction matches the reference joint. Yellow rings highlight the found locations before you commit.
-- **Manual targeting** — select individual joint origins or circular hole edges when you want fine-grained control.
+- **Manual targeting (default)** — select individual joint origins, circular hole edges, or sketch points/circles when you want fine-grained control.
+- **Select Similar** — auto-detects all holes on the target component whose axis direction matches the reference joint, and loads every match into the same target list. Yellow rings highlight the found locations, and any match you don't want can be removed from the list (or ctrl-clicked off in the viewport) before committing.
 - **Flip direction** — toggle the joint flip before committing, matching the orientation you need.
 - **Optional live preview** — tick "Preview placement" to render all instances in the viewport before clicking OK. Labelled with a warning because it can be slow on assemblies with hundreds of holes.
 - **One undo step** — all instances created in one execute call, so a single Ctrl+Z reverses everything.
@@ -53,33 +53,36 @@ ln -s /path/to/FusionBatchInsert.bundle \
 
 ### Verify the installation
 
-Go to **Utilities → Add-Ins**. FusionBatchInsert should appear in the list with version **1.1.0**.
+Go to **Utilities → Add-Ins**. FusionBatchInsert should appear in the list with version **1.2.0**.
 
 ---
 
 ## Usage
 
-### Select Similar mode (default)
+### Manual mode (default)
 
 1. Click **Batch Insert** in the Assemble panel.
-2. Pick the component that already has a joint (*Source component*). Yellow rings immediately appear on all matching unoccupied holes.
-3. The info box shows how many matches were found (e.g. *"Found 47 matching joint origins on 'Baseplate'"*).
-4. Optionally tick **Flip direction** if the orientation is wrong.
-5. Optionally tick **Preview placement** (⚠ slow on large assemblies) to see the actual instances before committing.
-6. Click **OK**.
+2. Pick the component that already has a joint (*Source component*).
+3. Pick each target joint origin, circular hole edge, or sketch point/circle individually into the **Target locations** list.
+4. Optionally adjust Flip / Preview.
+5. Click **OK**.
 
-### Manual mode
+### Select Similar mode
 
-1. Untick **Select similar**.
-2. Pick the source component, then pick each target joint origin or circular hole edge individually.
-3. Optionally adjust Flip / Preview.
-4. Click **OK**.
+1. Tick **Select similar**.
+2. Pick the source component. Yellow rings immediately appear on all matching unoccupied holes, and the same **Target locations** list is auto-populated with every match found.
+3. The info box shows how many matches were found (e.g. *"Found 47 matching joint origin(s) on 'Baseplate'"*).
+4. Remove any match you don't want — either delete it from the **Target locations** list, or ctrl-click its ring off in the viewport. Whatever remains in the list is exactly what gets placed.
+5. Optionally tick **Flip direction** if the orientation is wrong.
+6. Optionally tick **Preview placement** (⚠ slow on large assemblies) to see the actual instances before committing.
+7. Click **OK**.
 
 ### Tips
 
 - The source component must already have at least one joint defined. Create a single joint manually first, then use Batch Insert for the rest.
 - If the assembly has existing joint compute errors (red/yellow markers in the timeline), fix those before running Batch Insert. Adding a new joint triggers a full recompute and will surface any pre-existing failures.
 - For assemblies with many hundreds of holes, skip the Preview checkbox and click OK directly. The yellow rings already show where copies will land.
+- Editing the target list (removing a Select Similar match) is only available while **Preview placement** is unticked — that checkbox locks selection while it builds real instances.
 
 ---
 
@@ -90,12 +93,23 @@ When **Select Similar** is active the add-in:
 1. Reads the reference joint's axis direction from the source component.
 2. Searches the target component for named Joint Origins first (fast path), then falls back to a BRep circular-edge scan (hole pattern detection).
 3. Groups edges by their perpendicular-plane centre so that only one edge per physical hole is selected, at the same face depth as the reference joint.
-4. Draws non-destructive yellow `CustomGraphics` rings at every found location.
-5. On OK, iterates the target list and calls `root.occurrences.addExistingComponent` + `root.joints.add` for each — all within a single command execute, giving one undo step.
+4. Draws non-destructive yellow `CustomGraphics` rings at every found location, and loads every match into the **Target locations** selection list so it can be edited like a manual selection.
+5. On OK, iterates whatever remains in the **Target locations** list and calls `root.occurrences.addExistingComponent` + `root.joints.add` for each — all within a single command execute, giving one undo step.
 
 ---
 
 ## Changelog
+
+Full history: [CHANGELOG.md](CHANGELOG.md).
+
+### 1.2.0
+- "Select similar" now defaults to OFF — manual target selection is the default workflow.
+- Select Similar's matches now load into the **Target locations** list instead of only being drawn as rings, so unwanted matches can be removed (list control or ctrl-click) before committing. Whatever remains in the list is what gets placed, in both modes.
+- Validation now requires at least one target in both modes.
+
+### 1.1.1
+- Fixed: Select Similar OK/Preview buttons could stay greyed out even when matches were found.
+- Manual mode now accepts sketch geometry (sketch points, circles/arcs) as targets.
 
 ### 1.1.0
 - Improved error messages: Fusion cascade-failure dumps are condensed to one line with a count, and actionable guidance is shown when all copies fail due to assembly compute errors.

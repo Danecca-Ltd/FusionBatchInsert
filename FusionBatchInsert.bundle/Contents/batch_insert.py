@@ -2,12 +2,16 @@
 
 Workflow:
   1. User picks a component that already has a joint ("Source component").
-  2a. "Select similar" ON (default): yellow rings immediately highlight all matching
-      holes on the target component.  The info box shows how many were found.
-      Click OK — copies are placed at every highlighted location.
-  2b. "Select similar" OFF: user manually picks joint origins / circular hole edges.
+  2a. "Select similar" OFF (default): user manually picks joint origins / circular
+      hole edges / sketch points/circles into the "Target locations" list.
+  2b. "Select similar" ON: yellow rings highlight all matching holes and the same
+      "Target locations" list is auto-populated with every match found. The user
+      can remove entries they don't want (ctrl-click in the viewport, or the
+      list's own remove control) before clicking OK — whatever remains in the
+      list is exactly what gets placed.
   3. Optionally tick "Flip direction" before clicking OK.
-  4. Click OK — one new occurrence per target is created and jointed in one undo step.
+  4. Click OK — one new occurrence per remaining target is created and jointed
+     in one undo step.
 """
 
 from __future__ import annotations
@@ -43,6 +47,12 @@ _SIMILAR_DIR_TOL = 0.9998  # cos(~1.3°) — axis-direction match tolerance
 
 _retained: List[adsk.core.EventHandler] = []
 _cg_group: Optional[adsk.fusion.CustomGraphicsGroup] = None  # live target highlights
+
+# Guards the bulk clearSelection()/addSelection() loop in _refresh_similar:
+# Fusion can fire inputChanged for programmatic selection edits too, and
+# without this a large match list would trigger one nested redraw per
+# addSelection() call instead of the single one at the end of the loop.
+_populating_targets = False
 
 
 def _res_folder() -> str:
@@ -152,17 +162,33 @@ def _draw_target_highlights(
         pass
 
 
+def _to_selectable(entity, target_occ: Optional[adsk.fusion.Occurrence]):
+    """Return an in-context proxy suitable for SelectionCommandInput.addSelection."""
+    if target_occ is None:
+        return entity
+    try:
+        return entity.createForAssemblyContext(target_occ)
+    except Exception:
+        return entity
+
+
 def _refresh_similar(inputs: adsk.core.CommandInputs) -> None:
     """
-    Single entry point for Select-similar state: calls _find_similar_targets once,
-    then updates both the info text box and the yellow highlight rings.
+    Runs the full Select-similar match search and (re)populates the "Target
+    locations" selection input with every match found, replacing whatever was
+    there before. Called when the source changes or "Select similar" is first
+    turned on — NOT on every target-list edit (see _sync_targets_display),
+    otherwise the user's manual deselections would be wiped out.
     """
     _clear_target_highlights()
     try:
         src_sel = adsk.core.SelectionCommandInput.cast(inputs.itemById(INPUT_SOURCE))
+        tgt_sel = adsk.core.SelectionCommandInput.cast(inputs.itemById(INPUT_TARGETS))
         info    = adsk.core.TextBoxCommandInput.cast(inputs.itemById(INPUT_INFO))
 
         if src_sel is None or src_sel.selectionCount != 1:
+            if tgt_sel:
+                tgt_sel.clearSelection()
             if info:
                 info.formattedText = (
                     "Pick a source component to detect matching joint origins."
@@ -179,6 +205,8 @@ def _refresh_similar(inputs: adsk.core.CommandInputs) -> None:
         joint = _find_joint(root, occ)
 
         if joint is None:
+            if tgt_sel:
+                tgt_sel.clearSelection()
             if info:
                 info.formattedText = (
                     "No joint found on this component — create a joint first."
@@ -188,6 +216,19 @@ def _refresh_similar(inputs: adsk.core.CommandInputs) -> None:
         _, asm_geo, target_occ = _joint_sides(joint, occ)
         targets = _find_similar_targets(asm_geo, target_occ, root)
         n = len(targets)
+
+        global _populating_targets
+        if tgt_sel:
+            _populating_targets = True
+            try:
+                tgt_sel.clearSelection()
+                for entity, t_occ in targets:
+                    try:
+                        tgt_sel.addSelection(_to_selectable(entity, t_occ))
+                    except Exception:
+                        pass
+            finally:
+                _populating_targets = False
 
         if info:
             if n == 0:
@@ -200,7 +241,64 @@ def _refresh_similar(inputs: adsk.core.CommandInputs) -> None:
                 )
                 info.formattedText = (
                     f"Found {n} matching joint origin(s) on '{comp_name}'. "
-                    "Click OK to place all copies."
+                    "Remove any you don't need from the list below, then click OK."
+                )
+
+        if targets:
+            _draw_target_highlights(targets, root)
+
+    except Exception:
+        pass
+
+
+def _sync_targets_display(inputs: adsk.core.CommandInputs) -> None:
+    """
+    Re-derive the info text and yellow highlight rings from whatever is
+    CURRENTLY in the "Target locations" list, without re-running the match
+    search. Used after the user edits the auto-populated list (add/remove a
+    target) in Select-similar mode, and when re-enabling the dialog after a
+    real-instance preview — either way the existing selections must be
+    preserved, not overwritten by a fresh _find_similar_targets() scan.
+    """
+    try:
+        src_sel = adsk.core.SelectionCommandInput.cast(inputs.itemById(INPUT_SOURCE))
+        tgt_sel = adsk.core.SelectionCommandInput.cast(inputs.itemById(INPUT_TARGETS))
+        info    = adsk.core.TextBoxCommandInput.cast(inputs.itemById(INPUT_INFO))
+
+        _clear_target_highlights()
+        if src_sel is None or src_sel.selectionCount != 1 or tgt_sel is None:
+            return
+
+        app    = adsk.core.Application.get()
+        design = adsk.fusion.Design.cast(app.activeProduct)
+        if design is None:
+            return
+
+        occ   = adsk.fusion.Occurrence.cast(src_sel.selection(0).entity)
+        root  = design.rootComponent
+        joint = _find_joint(root, occ)
+        if joint is None:
+            return
+
+        _, _, target_occ = _joint_sides(joint, occ)
+        targets = [
+            (tgt_sel.selection(i).entity, target_occ)
+            for i in range(tgt_sel.selectionCount)
+        ]
+        n = len(targets)
+
+        if info:
+            if n == 0:
+                info.formattedText = (
+                    "No targets selected — every match was removed from the list. "
+                    "Ctrl-click matches in the viewport to add some back."
+                )
+            else:
+                comp_name = (
+                    target_occ.component.name if target_occ else "root component"
+                )
+                info.formattedText = (
+                    f"{n} target(s) selected on '{comp_name}'. Click OK to place all copies."
                 )
 
         if targets:
@@ -301,23 +399,27 @@ class _CreatedHandler(adsk.core.CommandCreatedEventHandler):
             src.setSelectionLimits(1, 1)
             src.addSelectionFilter("Occurrences")
 
-            # 2. Select-similar checkbox (on by default)
-            inputs.addBoolValueInput(INPUT_SIMILAR, "Select similar", True, "", True)
+            # 2. Select-similar checkbox (off by default; manual selection is expected)
+            inputs.addBoolValueInput(INPUT_SIMILAR, "Select similar", True, "", False)
 
             # 3. Info text (shown in Select-similar mode)
-            inputs.addTextBoxCommandInput(
+            info = inputs.addTextBoxCommandInput(
                 INPUT_INFO, "",
                 "Pick a source component to detect matching joint origins.",
                 2, True,
             )
+            info.isVisible = False
 
-            # 4. Manual target selection (hidden in Select-similar mode)
+            # 4. Target selection. Always visible: in manual mode the user
+            #    builds this list by hand; in Select-similar mode it is
+            #    auto-populated with every match (see _refresh_similar) and
+            #    stays editable so unwanted matches can be removed.
             tgt = inputs.addSelectionInput(
                 INPUT_TARGETS,
                 "Target locations",
                 "Pick joint origins, circular hole edges, or sketch points/circles where copies will be placed",
             )
-            tgt.setSelectionLimits(0, 0)  # min=0: Fusion enforces it otherwise even when hidden
+            tgt.setSelectionLimits(0, 0)  # min=0: Fusion enforces it otherwise even when disabled
             for _f in ("JointOrigins", "CircularEdges",
                        "SketchPoints", "SketchCurves", "SketchCircles", "SketchArcs"):
                 try:
@@ -325,7 +427,7 @@ class _CreatedHandler(adsk.core.CommandCreatedEventHandler):
                 except Exception:
                     pass
             tgt.isEnabled = False
-            tgt.isVisible = False
+            tgt.isVisible = True
 
             # 5. Flip direction
             flip = inputs.addBoolValueInput(INPUT_FLIP, "Flip direction", True, "", False)
@@ -380,26 +482,29 @@ class _InputChangedHandler(adsk.core.InputChangedEventHandler):
 
             use_similar = (similar is not None and similar.value)
             in_preview  = (prev is not None and prev.value)
+            has_source  = (src is not None and src.selectionCount == 1)
 
             # --- Select-similar / manual toggle ---
             if cid == INPUT_SIMILAR:
                 if inputs.itemById(INPUT_INFO):
                     inputs.itemById(INPUT_INFO).isVisible = use_similar
                 if tgt:
-                    tgt.isVisible = not use_similar
-                    tgt.isEnabled = (
-                        not use_similar and not in_preview
-                        and src is not None and src.selectionCount == 1
-                    )
-                if use_similar and not in_preview:
+                    try:
+                        tgt.name = (
+                            "Matched targets (remove any you don't need)"
+                            if use_similar else "Target locations"
+                        )
+                    except Exception:
+                        pass
+                    if not use_similar:
+                        tgt.clearSelection()
+                if use_similar and has_source and not in_preview:
                     _refresh_similar(inputs)
                 else:
                     _clear_target_highlights()
 
             # --- Source changed ---
             if cid == INPUT_SOURCE:
-                has_source = (src is not None and src.selectionCount == 1)
-
                 # Seed flip from the existing joint
                 if has_source and flip:
                     try:
@@ -414,36 +519,22 @@ class _InputChangedHandler(adsk.core.InputChangedEventHandler):
                 if flip:
                     flip.isEnabled = has_source
 
-                # Enable manual target selector when not using similar
-                if tgt and not use_similar:
-                    tgt.isEnabled = has_source and not in_preview
-                    if has_source and not in_preview:
-                        tgt.hasFocus = True
-
-                # Update Preview button availability
-                if prev:
-                    if use_similar:
-                        prev.isEnabled = has_source
-                    else:
-                        prev.isEnabled = has_source and (
-                            tgt is not None and tgt.selectionCount >= 1
-                        )
-
-                # Refresh rings / info in similar mode
-                if use_similar and not in_preview:
-                    _refresh_similar(inputs)
-                else:
+                if not has_source:
+                    if tgt:
+                        tgt.clearSelection()
                     _clear_target_highlights()
+                elif use_similar and not in_preview:
+                    _refresh_similar(inputs)
+                elif not use_similar and tgt and not in_preview:
+                    tgt.hasFocus = True
 
-            # --- Target selection changed (manual mode) ---
-            if cid == INPUT_TARGETS and prev and not use_similar:
-                has_source = (src is not None and src.selectionCount == 1)
-                prev.isEnabled = has_source and (
-                    tgt is not None and tgt.selectionCount >= 1
-                )
+            # --- Target list edited (either mode): redraw rings / info from
+            #     whatever is now selected, without re-running the match search ---
+            if cid == INPUT_TARGETS and use_similar and not in_preview and not _populating_targets:
+                _sync_targets_display(inputs)
 
             # --- Preview checkbox toggled ---
-            if cid == INPUT_PREVIEW and prev:
+            if cid == INPUT_PREVIEW:
                 if in_preview:
                     # Lock selection; real instances will replace the rings
                     if src:     src.isEnabled     = False
@@ -452,18 +543,22 @@ class _InputChangedHandler(adsk.core.InputChangedEventHandler):
                     if flip:    flip.isEnabled      = True
                     _clear_target_highlights()
                 else:
-                    # Unlock selection
+                    # Unlock selection. Redraw from the EXISTING target list
+                    # rather than re-running Select-similar, which would wipe
+                    # out any entries the user removed before previewing.
                     if src:     src.isEnabled     = True
                     if similar: similar.isEnabled  = True
-                    if tgt:     tgt.isEnabled      = (
-                        not use_similar
-                        and src is not None and src.selectionCount == 1
-                    )
-                    # Restore rings
-                    if use_similar and src is not None and src.selectionCount == 1:
-                        _refresh_similar(inputs)
-                    else:
-                        _clear_target_highlights()
+                    if use_similar and has_source:
+                        _sync_targets_display(inputs)
+
+            # --- Uniform enable/disable sync, run after any of the above ---
+            if tgt:
+                tgt.isEnabled = has_source and not in_preview
+            if prev:
+                prev.isEnabled = (
+                    has_source and not in_preview
+                    and tgt is not None and tgt.selectionCount >= 1
+                )
 
         except Exception:
             pass  # never crash the live dialog
@@ -472,20 +567,17 @@ class _InputChangedHandler(adsk.core.InputChangedEventHandler):
 class _ValidateHandler(adsk.core.ValidateInputsEventHandler):
     def notify(self, args: adsk.core.ValidateInputsEventArgs) -> None:
         try:
-            inputs  = args.inputs
-            src     = adsk.core.SelectionCommandInput.cast(inputs.itemById(INPUT_SOURCE))
-            similar = adsk.core.BoolValueCommandInput.cast(inputs.itemById(INPUT_SIMILAR))
-            tgt     = adsk.core.SelectionCommandInput.cast(inputs.itemById(INPUT_TARGETS))
+            inputs = args.inputs
+            src    = adsk.core.SelectionCommandInput.cast(inputs.itemById(INPUT_SOURCE))
+            tgt    = adsk.core.SelectionCommandInput.cast(inputs.itemById(INPUT_TARGETS))
 
             if src is None or src.selectionCount != 1:
                 args.areInputsValid = False
                 return
 
-            if similar is not None and similar.value:
-                # Source is selected; similar search runs at execute time
-                args.areInputsValid = True
-            else:
-                args.areInputsValid = (tgt is not None and tgt.selectionCount >= 1)
+            # Whether populated by Select-similar or picked manually, the
+            # target list is the single source of truth for what gets placed.
+            args.areInputsValid = (tgt is not None and tgt.selectionCount >= 1)
 
         except Exception:
             args.areInputsValid = False
@@ -572,7 +664,6 @@ def _do_batch(args: adsk.core.CommandEventArgs, *, silent: bool = False) -> None
         inputs = args.command.commandInputs
 
         src_sel = adsk.core.SelectionCommandInput.cast(inputs.itemById(INPUT_SOURCE))
-        similar = adsk.core.BoolValueCommandInput.cast(inputs.itemById(INPUT_SIMILAR))
         tgt_sel = adsk.core.SelectionCommandInput.cast(inputs.itemById(INPUT_TARGETS))
         flip    = adsk.core.BoolValueCommandInput.cast(inputs.itemById(INPUT_FLIP))
 
@@ -587,20 +678,19 @@ def _do_batch(args: adsk.core.CommandEventArgs, *, silent: bool = False) -> None
             )
             return
 
-        _, asm_geo, target_occ = _joint_sides(joint, source_occ)
+        _, _, target_occ = _joint_sides(joint, source_occ)
         joint_type = joint.jointMotion.jointType
         is_flipped = (
             flip.value if (flip is not None and flip.isEnabled) else joint.isFlipped
         )
 
-        use_similar = (similar is not None and similar.value)
-        if use_similar:
-            targets = _find_similar_targets(asm_geo, target_occ, root)
-        else:
-            targets = [
-                (tgt_sel.selection(i).entity, target_occ)
-                for i in range(tgt_sel.selectionCount)
-            ]
+        # The target list is the single source of truth for what gets placed,
+        # whether it was auto-populated by Select-similar (and possibly
+        # trimmed by the user) or built manually.
+        targets = [
+            (tgt_sel.selection(i).entity, target_occ)
+            for i in range(tgt_sel.selectionCount)
+        ] if tgt_sel is not None else []
 
         if not targets:
             args.isValidResult = False

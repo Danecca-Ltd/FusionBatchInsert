@@ -43,7 +43,7 @@ Pattern: every handler is appended to both lists after being registered.
 | `INPUT_SOURCE` | `bi_source`   | SelectionCommandInput   | Source occurrence (has a joint)    |
 | `INPUT_SIMILAR`| `bi_similar`  | BoolValueCommandInput   | Select Similar toggle              |
 | `INPUT_INFO`   | `bi_info`     | TextBoxCommandInput     | Match count / status (read-only)   |
-| `INPUT_TARGETS`| `bi_targets`  | SelectionCommandInput   | Manual target origins/edges        |
+| `INPUT_TARGETS`| `bi_targets`  | SelectionCommandInput   | Target list — manual picks, or auto-populated matches in Select-similar mode (single source of truth for `_do_batch`) |
 | `INPUT_FLIP`   | `bi_flip`     | BoolValueCommandInput   | Flip direction (seeded from joint) |
 | `INPUT_PREVIEW`| `bi_preview`  | BoolValueCommandInput   | Gate for live preview              |
 
@@ -93,6 +93,43 @@ tied to the current model state. After `root.joints.add()` modifies the model, a
 1. Extracts `ref_axis` from the reference `JointOrigin` or `JointGeometry`.
 2. Searches `target_comp.jointOrigins` for matching axis direction (fast path).
 3. If no named origins found, falls back to `_find_matching_circular_edges()`.
+
+### Target list is the single source of truth
+
+`INPUT_TARGETS` (`bi_targets`) is not manual-mode-only: in Select-similar mode it is
+auto-populated with every match, and stays editable so unwanted matches can be removed
+(via the list's own remove control, or ctrl-click in the viewport). `_do_batch()` always
+reads targets from this list — it never re-runs `_find_similar_targets()` at execute
+time — so what's highlighted/listed in the dialog is exactly what gets placed, in both
+modes. `_ValidateHandler` requires `tgt.selectionCount >= 1` in both modes for the same
+reason.
+
+Two distinct refresh paths exist and must not be conflated:
+- `_refresh_similar(inputs)` — runs the full match search and *replaces* the list's
+  contents. Called on source change or when "Select similar" is first ticked. Never call
+  this in response to a `INPUT_TARGETS` change — it would silently undo the user's edit.
+- `_sync_targets_display(inputs)` — re-derives the info text and rings from whatever is
+  *currently* in the list, without searching. Called after the user edits the list, and
+  when re-enabling the dialog after a real-instance preview.
+
+Populating the list programmatically (`tgt_sel.addSelection(...)` in a loop) can itself
+trigger nested `inputChanged` events for `INPUT_TARGETS` — Fusion doesn't only fire that
+event for user-driven edits. The module-level `_populating_targets` flag guards against
+this; without it, a large match list would trigger one nested redraw per entry instead
+of the single one at the end of the populate loop.
+
+Named `JointOrigin` matches must be re-contextualized via `createForAssemblyContext`
+before `addSelection()` (see `_to_selectable()`) — unlike the ring-drawing path, which
+only needs `nativeObject` + a manual transform, a real selection has to be an in-context
+proxy or Fusion won't accept it as a picked entity.
+
+**Gotcha:** not every `CommandInput` property is safe to set on every input type — e.g.
+renaming a `SelectionCommandInput` via `.name` can throw depending on the Fusion version.
+Because `_InputChangedHandler.notify()` wraps everything in a single `except: pass` (to
+never crash the live dialog), an uncaught exception from a cosmetic property set can
+silently abort the rest of the handler — including the refresh call that was about to
+run. Wrap any non-essential property set in its own try/except rather than trusting the
+outer catch-all; it hides failures rather than isolating them.
 
 `_find_matching_circular_edges()`:
 - Iterates all `BRepEdge`s in all bodies of the target component.
