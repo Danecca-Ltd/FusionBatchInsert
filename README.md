@@ -53,7 +53,7 @@ ln -s /path/to/FusionBatchInsert.bundle \
 
 ### Verify the installation
 
-Go to **Utilities → Add-Ins**. FusionBatchInsert should appear in the list with version **1.2.0**.
+Go to **Utilities → Add-Ins**. FusionBatchInsert should appear in the list with version **1.2.1**.
 
 ---
 
@@ -101,6 +101,10 @@ When **Select Similar** is active the add-in:
 ## Changelog
 
 Full history: [CHANGELOG.md](CHANGELOG.md).
+
+### 1.2.1
+- Toolbar button no longer auto-promotes itself to the top-level toolbar on install — that's left to the user (Marketplace publishing guideline).
+- Added a Marketplace listing icon (`marketplace_icon_*.png`), derived from the toolbar icon's palette and motif.
 
 ### 1.2.0
 - "Select similar" now defaults to OFF — manual target selection is the default workflow.

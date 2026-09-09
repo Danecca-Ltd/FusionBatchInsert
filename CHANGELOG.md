@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1 — 2026-09-09
+- Toolbar button is no longer auto-promoted to the top-level toolbar on install
+  (`ctrl.isPromoted` removed). Marketplace publishing guideline: promoting a command
+  is the user's choice, not something an add-in should force.
+- Added `marketplace_icon_{130,300,512,1024}.png` at the repo root — a Marketplace
+  listing icon derived from the existing toolbar icon's palette/motif (grid +
+  diagonal highlight + axis arrows), reworked with a filled background for use as a
+  standalone store listing asset rather than the transparent in-app toolbar icon.
+
 ## 1.2.0 — 2026-09-09
 - "Select similar" now defaults to OFF — manual target selection is the default workflow.
 - Select Similar's matches are now loaded straight into the "Target locations" selection

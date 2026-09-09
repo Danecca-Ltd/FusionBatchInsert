@@ -94,7 +94,9 @@ def register(
     if ctrl is None:
         ctrl = panel.controls.addCommand(cmd_def)
     ctrl.isVisible = True
-    ctrl.isPromoted = True
+    # Don't auto-promote to the toolbar top level — that's a user choice
+    # (Marketplace guideline: "Users can promote frequently-used commands
+    # to the top level of the toolbar themselves").
 
 
 def unregister(

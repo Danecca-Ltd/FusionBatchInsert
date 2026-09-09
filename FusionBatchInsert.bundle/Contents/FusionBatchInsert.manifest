@@ -6,7 +6,7 @@
     "description": {
         "": "Batch-place jointed component instances across joint origins in one step"
     },
-    "version": "1.2.0",
+    "version": "1.2.1",
     "runOnStartup": true,
     "supportedOS": "windows|mac",
     "editEnabled": true
