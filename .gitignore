@@ -13,3 +13,6 @@ desktop.ini
 .vscode/
 .idea/
 *.swp
+
+# Generated submission packages (rebuild from FusionBatchInsert.bundle/ + help.html)
+FusionBatchInsert_v*.zip

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FusionBatchInsert — Help</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1.5rem; color: #1a1a1a; line-height: 1.55; }
+  h1 { border-bottom: 3px solid #29558E; padding-bottom: 0.4rem; }
+  h2 { color: #29558E; margin-top: 2rem; border-bottom: 1px solid #ddd; padding-bottom: 0.2rem; }
+  h3 { color: #29558E; }
+  code, pre { background: #f4f4f4; border-radius: 4px; padding: 0.15rem 0.4rem; font-size: 0.92em; }
+  pre { padding: 0.8rem; overflow-x: auto; }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin-bottom: 0.35rem; }
+  .tip { background: #eef4fb; border-left: 4px solid #29558E; padding: 0.7rem 1rem; margin: 1rem 0; }
+  .version { color: #666; font-size: 0.9em; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #ddd; color: #666; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>FusionBatchInsert <span class="version">v1.2.1</span></h1>
+
+<p>A Fusion 360 add-in that places multiple jointed copies of a component across a hole pattern in a single operation.</p>
+
+<p>Fusion's built-in <strong>Duplicate with Joint</strong> command creates one copy at a time. When you need 50 or 200 copies of a washer, bolt, or any other jointed part across a regular hole pattern, this add-in does it in one click.</p>
+
+<h2>Features</h2>
+<ul>
+  <li><strong>Manual targeting (default)</strong> — select individual joint origins, circular hole edges, or sketch points/circles when you want fine-grained control.</li>
+  <li><strong>Select Similar</strong> — auto-detects all holes on the target component whose axis direction matches the reference joint, and loads every match into the same target list. Yellow rings highlight the found locations, and any match you don't want can be removed from the list (or ctrl-clicked off in the viewport) before committing.</li>
+  <li><strong>Flip direction</strong> — toggle the joint flip before committing, matching the orientation you need.</li>
+  <li><strong>Optional live preview</strong> — tick "Preview placement" to render all instances in the viewport before clicking OK. Labelled with a warning because it can be slow on assemblies with hundreds of holes.</li>
+  <li><strong>One undo step</strong> — all instances are created in one execute call, so a single Ctrl+Z reverses everything.</li>
+  <li><strong>Supports both named Joint Origins and implicit geometry</strong> — works whether your joints were created from named origin markers or directly from faces and circular edges.</li>
+</ul>
+
+<h2>Requirements</h2>
+<ul>
+  <li>Autodesk Fusion (any recent version supporting the Fusion API)</li>
+  <li>Windows 10/11 or macOS</li>
+</ul>
+
+<h2>Installation</h2>
+
+<h3>Windows</h3>
+<ol>
+  <li>Unzip this package to a permanent location on disk.</li>
+  <li>Copy (or link) the <code>FusionBatchInsert.bundle</code> folder into:
+    <pre>%APPDATA%\Autodesk\ApplicationPlugins\</pre>
+  </li>
+  <li>Restart Fusion. The <strong>Batch Insert</strong> button appears in the <strong>Assemble</strong> panel in the Design workspace.</li>
+</ol>
+
+<h3>macOS</h3>
+<ol>
+  <li>Unzip this package to a permanent location on disk.</li>
+  <li>Copy the <code>FusionBatchInsert.bundle</code> folder into:
+    <pre>~/Library/Application Support/Autodesk/ApplicationPlugins/</pre>
+  </li>
+  <li>Restart Fusion.</li>
+</ol>
+
+<h3>Verify the installation</h3>
+<p>Go to <strong>Utilities → Add-Ins</strong>. FusionBatchInsert should appear in the list with version <strong>1.2.1</strong>.</p>
+
+<h2>Usage</h2>
+
+<h3>Manual mode (default)</h3>
+<ol>
+  <li>Click <strong>Batch Insert</strong> in the Assemble panel.</li>
+  <li>Pick the component that already has a joint (<em>Source component</em>).</li>
+  <li>Pick each target joint origin, circular hole edge, or sketch point/circle individually into the <strong>Target locations</strong> list.</li>
+  <li>Optionally adjust Flip / Preview.</li>
+  <li>Click <strong>OK</strong>.</li>
+</ol>
+
+<h3>Select Similar mode</h3>
+<ol>
+  <li>Tick <strong>Select similar</strong>.</li>
+  <li>Pick the source component. Yellow rings immediately appear on all matching unoccupied holes, and the same <strong>Target locations</strong> list is auto-populated with every match found.</li>
+  <li>The info box shows how many matches were found (e.g. "Found 47 matching joint origin(s) on 'Baseplate'").</li>
+  <li>Remove any match you don't want — either delete it from the <strong>Target locations</strong> list, or ctrl-click its ring off in the viewport. Whatever remains in the list is exactly what gets placed.</li>
+  <li>Optionally tick <strong>Flip direction</strong> if the orientation is wrong.</li>
+  <li>Optionally tick <strong>Preview placement</strong> (⚠ slow on large assemblies) to see the actual instances before committing.</li>
+  <li>Click <strong>OK</strong>.</li>
+</ol>
+
+<div class="tip">
+  <strong>Tips</strong>
+  <ul>
+    <li>The source component must already have at least one joint defined. Create a single joint manually first, then use Batch Insert for the rest.</li>
+    <li>If the assembly has existing joint compute errors (red/yellow markers in the timeline), fix those before running Batch Insert. Adding a new joint triggers a full recompute and will surface any pre-existing failures.</li>
+    <li>For assemblies with many hundreds of holes, skip the Preview checkbox and click OK directly. The yellow rings already show where copies will land.</li>
+    <li>Editing the target list (removing a Select Similar match) is only available while <strong>Preview placement</strong> is unticked — that checkbox locks selection while it builds real instances.</li>
+  </ul>
+</div>
+
+<footer>
+  <p>FusionBatchInsert is a free add-in. It collects no user data.</p>
+  <p>Danecca Ltd &mdash; 2026</p>
+</footer>
+
+</body>
+</html>
