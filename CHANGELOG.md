@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.2 — 2026-09-17
+- Added in-app help: `Command.helpFile` now points at a bundled
+  `Contents/resources/help/help.html`, so the command dialog shows a Help
+  button (lower-left) and F1 opens it — Marketplace submission requirement.
+  Must be a local file (helpFile can't be a bare URL), so the page ships
+  inside the bundle rather than pointing at GitHub.
+- Moved `help.html` from the repo root into the bundle's `resources/help/`
+  folder — it's now shipped with the add-in for both the in-app help button
+  and the App Store submission zip, instead of being a separate root file.
+
 ## 1.2.1 — 2026-09-09
 - Toolbar button is no longer auto-promoted to the top-level toolbar on install
   (`ctrl.isPromoted` removed). Marketplace publishing guideline: promoting a command

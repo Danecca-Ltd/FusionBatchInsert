@@ -10,7 +10,13 @@ FusionBatchInsert.bundle/
     FusionBatchInsert.py       — entry point: run() / stop()
     batch_insert.py            — all command logic
     resources/BatchInsert/     — 16x16, 32x32, 64x64 toolbar icons
+    resources/help/help.html   — in-app help page (Command.helpFile — F1 / Help button)
 ```
+
+Bump the version (`AppVersion`, `ComponentEntry Version`, and the manifest's
+`"version"`) together on every change, and update the `<span class="version">`
+and "should appear... with version" line in `resources/help/help.html` to match
+— Marketplace requires an updated version number on every submission.
 
 ## Deployment (Windows)
 
@@ -46,6 +52,15 @@ Pattern: every handler is appended to both lists after being registered.
 | `INPUT_TARGETS`| `bi_targets`  | SelectionCommandInput   | Target list — manual picks, or auto-populated matches in Select-similar mode (single source of truth for `_do_batch`) |
 | `INPUT_FLIP`   | `bi_flip`     | BoolValueCommandInput   | Flip direction (seeded from joint) |
 | `INPUT_PREVIEW`| `bi_preview`  | BoolValueCommandInput   | Gate for live preview              |
+
+## Help file (F1 / Help button)
+
+`Command.helpFile` (set on `args.command` in `_CreatedHandler`, not on the
+`CommandDefinition`) must be a **local file path** — Fusion rejects a bare URL.
+It shows a Help button in the dialog's lower-left corner and backs the F1
+shortcut; Fusion opens it with whatever the OS associates with the file type
+(browser for `.html`). Points at `resources/help/help.html`, which is the same
+file copied to the root of the App Store submission zip.
 
 ## executePreview behaviour (critical)
 

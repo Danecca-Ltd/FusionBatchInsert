@@ -59,6 +59,10 @@ def _res_folder() -> str:
     return os.path.join(os.path.dirname(__file__), "resources", "BatchInsert")
 
 
+def _help_file() -> str:
+    return os.path.join(os.path.dirname(__file__), "resources", "help", "help.html")
+
+
 def _read_version() -> str:
     try:
         manifest = os.path.join(os.path.dirname(__file__), "FusionBatchInsert.manifest")
@@ -389,6 +393,15 @@ class _CreatedHandler(adsk.core.CommandCreatedEventHandler):
 
             try:
                 cmd.setDialogMinimumSize(420, 50)
+            except Exception:
+                pass
+
+            # Shows a Help button (lower-left of the dialog) and backs the
+            # F1 shortcut with the bundled help page. helpFile must be a
+            # local file — it can't be a bare URL — so we ship the page
+            # inside the bundle rather than pointing at GitHub.
+            try:
+                cmd.helpFile = _help_file()
             except Exception:
                 pass
 

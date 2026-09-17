@@ -53,7 +53,7 @@ ln -s /path/to/FusionBatchInsert.bundle \
 
 ### Verify the installation
 
-Go to **Utilities → Add-Ins**. FusionBatchInsert should appear in the list with version **1.2.1**.
+Go to **Utilities → Add-Ins**. FusionBatchInsert should appear in the list with version **1.2.2**.
 
 ---
 
@@ -101,6 +101,9 @@ When **Select Similar** is active the add-in:
 ## Changelog
 
 Full history: [CHANGELOG.md](CHANGELOG.md).
+
+### 1.2.2
+- Added in-app help: the command dialog now shows a Help button and responds to F1, opening a bundled help page (`FusionBatchInsert.bundle/Contents/resources/help/help.html`).
 
 ### 1.2.1
 - Toolbar button no longer auto-promotes itself to the top-level toolbar on install — that's left to the user (Marketplace publishing guideline).
